@@ -2336,15 +2336,6 @@ networkpolicies: {}
 #       type: persistentVolumeClaim
 #       accessMode: ReadWriteOnce
 #       size: 1Gi
-#   persistence:
-#     config:
-#       type: persistentVolumeClaim
-#       accessMode: ReadWriteOnce
-#       size: 10Gi
-#       storageClass: fast-ssd
-#       retain: true
-#       globalMounts:
-#         - path: /config
 persistence: {}
   # Example entry - rename as needed
   # main:
