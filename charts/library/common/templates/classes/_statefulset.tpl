@@ -6,14 +6,14 @@ within the common library.
   {{- $rootContext := .rootContext -}}
   {{- $statefulsetObject := .object -}}
 
-  {{- $labels := merge
+  {{- $labels := mergeOverwrite
+    (include "bjw-s.common.lib.metadata.allLabels" $rootContext | fromYaml)
     (dict "app.kubernetes.io/controller" $statefulsetObject.identifier)
     ($statefulsetObject.labels | default dict)
-    (include "bjw-s.common.lib.metadata.allLabels" $rootContext | fromYaml)
   -}}
-  {{- $annotations := merge
-    ($statefulsetObject.annotations | default dict)
+  {{- $annotations := mergeOverwrite
     (include "bjw-s.common.lib.metadata.globalAnnotations" $rootContext | fromYaml)
+    ($statefulsetObject.annotations | default dict)
   -}}
 ---
 apiVersion: apps/v1
@@ -23,13 +23,13 @@ metadata:
   {{- with $labels }}
   labels:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   {{- with $annotations }}
   annotations:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   namespace: {{ $rootContext.Release.Namespace }}
@@ -56,14 +56,13 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      app.kubernetes.io/controller: {{ $statefulsetObject.identifier }}
-      {{- include "bjw-s.common.lib.metadata.selectorLabels" $rootContext | nindent 6 }}
+      {{- include "bjw-s.common.lib.controller.metadata.selectorLabels" (dict "rootContext" $rootContext "controllerObject" $statefulsetObject) | nindent 6 }}
   {{- $serviceName := include "bjw-s.common.lib.chart.names.fullname" $rootContext }}
   {{- with (dig "statefulset" "serviceName" nil $statefulsetObject) }}
     {{- if kindIs "map" . }}
       {{- $serviceName = (include "bjw-s.common.lib.service.getByIdentifier" (dict "rootContext" $rootContext "id" .identifier) | fromYaml ).name }}
     {{- else }}
-      {{- $serviceName = tpl . $rootContext }}
+      {{- $serviceName = include "bjw-s.common.lib.common.renderString" (dict "value" . "rootContext" $rootContext) }}
     {{- end }}
   {{- end }}
   serviceName: {{ $serviceName }}

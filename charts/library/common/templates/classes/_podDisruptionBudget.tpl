@@ -10,15 +10,13 @@ using the common library.
     (dict "app.kubernetes.io/controller" $podDisruptionBudgetObject.controller)
     (include "bjw-s.common.lib.metadata.allLabels" $rootContext | fromYaml)
   -}}
-  {{- $annotations := merge
-    ($podDisruptionBudgetObject.annotations | default dict)
+  {{- $annotations := mergeOverwrite
     (include "bjw-s.common.lib.metadata.globalAnnotations" $rootContext | fromYaml)
+    ($podDisruptionBudgetObject.annotations | default dict)
   -}}
 
-  {{- $selector := dict "matchLabels" (merge
-    (dict "app.kubernetes.io/controller" $podDisruptionBudgetObject.controller)
-    (include "bjw-s.common.lib.metadata.selectorLabels" $rootContext | fromYaml)
-  ) -}}
+  {{- $controllerObject := include "bjw-s.common.lib.controller.getByIdentifier" (dict "rootContext" $rootContext "id" $podDisruptionBudgetObject.controller) | fromYaml -}}
+  {{- $selector := dict "matchLabels" (include "bjw-s.common.lib.controller.metadata.selectorLabels" (dict "rootContext" $rootContext "controllerObject" $controllerObject) | fromYaml) -}}
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -27,13 +25,13 @@ metadata:
   {{- with $labels }}
   labels:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   {{- with $annotations }}
   annotations:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   namespace: {{ $rootContext.Release.Namespace }}

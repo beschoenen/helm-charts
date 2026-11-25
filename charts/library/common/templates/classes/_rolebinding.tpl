@@ -5,13 +5,13 @@ This template serves as a blueprint for generating RoleBinding objects in Kubern
   {{- $rootContext := .rootContext -}}
   {{- $roleBindingObject := .object -}}
 
-  {{- $labels := merge
-    ($roleBindingObject.labels | default dict)
+  {{- $labels := mergeOverwrite
     (include "bjw-s.common.lib.metadata.allLabels" $rootContext | fromYaml)
+    ($roleBindingObject.labels | default dict)
   -}}
-  {{- $annotations := merge
-    ($roleBindingObject.annotations | default dict)
+  {{- $annotations := mergeOverwrite
     (include "bjw-s.common.lib.metadata.globalAnnotations" $rootContext | fromYaml)
+    ($roleBindingObject.annotations | default dict)
   -}}
   {{- $subjects := list -}}
   {{- with $roleBindingObject.subjects -}}
@@ -61,13 +61,13 @@ metadata:
   {{- with $labels }}
   labels:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   {{- with $annotations }}
   annotations:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   {{ if eq $roleBindingObject.type "RoleBinding" -}}
@@ -78,7 +78,7 @@ roleRef:
   name: {{ $role.name }}
   apiGroup: rbac.authorization.k8s.io
 {{ with $subjects -}}
-subjects: {{- tpl . $rootContext | nindent 2 }}
+subjects: {{- include "bjw-s.common.lib.common.renderString" (dict "value" . "rootContext" $rootContext) | nindent 2 }}
 
 {{- end -}}
 

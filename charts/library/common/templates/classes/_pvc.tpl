@@ -6,13 +6,13 @@ within the common library.
   {{- $rootContext := .rootContext -}}
   {{- $pvcObject := .object -}}
 
-  {{- $labels := merge
-    ($pvcObject.labels | default dict)
+  {{- $labels := mergeOverwrite
     (include "bjw-s.common.lib.metadata.allLabels" $rootContext | fromYaml)
+    ($pvcObject.labels | default dict)
   -}}
-  {{- $annotations := merge
-    ($pvcObject.annotations | default dict)
+  {{- $annotations := mergeOverwrite
     (include "bjw-s.common.lib.metadata.globalAnnotations" $rootContext | fromYaml)
+    ($pvcObject.annotations | default dict)
   -}}
   {{- if $pvcObject.retain }}
     {{- $annotations = merge
@@ -28,13 +28,13 @@ metadata:
   {{- with $labels }}
   labels:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   {{- with $annotations }}
   annotations:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   namespace: {{ $rootContext.Release.Namespace }}
@@ -51,9 +51,9 @@ spec:
   volumeName: {{ $pvcObject.volumeName | quote }}
   {{- end }}
   {{- with $pvcObject.dataSource }}
-  dataSource: {{- tpl (toYaml .) $rootContext | nindent 10 }}
+  dataSource: {{- include "bjw-s.common.lib.common.renderString" (dict "value" (toYaml .) "rootContext" $rootContext) | nindent 10 }}
   {{- end }}
   {{- with $pvcObject.dataSourceRef }}
-  dataSourceRef: {{- tpl (toYaml .) $rootContext | nindent 10 }}
+  dataSourceRef: {{- include "bjw-s.common.lib.common.renderString" (dict "value" (toYaml .) "rootContext" $rootContext) | nindent 10 }}
   {{- end }}
 {{- end -}}

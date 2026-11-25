@@ -6,45 +6,30 @@ within the common library.
   {{- $rootContext := .rootContext -}}
   {{- $networkPolicyObject := .object -}}
 
-  {{- $labels := merge
-    ($networkPolicyObject.labels | default dict)
+  {{- $labels := mergeOverwrite
     (include "bjw-s.common.lib.metadata.allLabels" $rootContext | fromYaml)
+    ($networkPolicyObject.labels | default dict)
   -}}
-  {{- $annotations := merge
-    ($networkPolicyObject.annotations | default dict)
+  {{- $annotations := mergeOverwrite
     (include "bjw-s.common.lib.metadata.globalAnnotations" $rootContext | fromYaml)
+    ($networkPolicyObject.annotations | default dict)
   -}}
   {{- $podSelector := dict -}}
   {{- if (hasKey $networkPolicyObject "podSelector") -}}
     {{- $podSelector = $networkPolicyObject.podSelector -}}
   {{- else -}}
-    {{- /* Determine the controller identifier to use */ -}}
-    {{- $controllerIdentifier := "" -}}
-    {{- if and (hasKey $networkPolicyObject "controller") $networkPolicyObject.controller -}}
-      {{- $controllerIdentifier = $networkPolicyObject.controller -}}
+    {{- $controllerIdentifiers := list -}}
+    {{- if $networkPolicyObject.controllers -}}
+      {{- $controllerIdentifiers = include "bjw-s.common.lib.controller.resolveReferences" (dict "rootContext" $rootContext "references" $networkPolicyObject.controllers "resourceKind" "NetworkPolicy" "policyIdentifier" $networkPolicyObject.identifier "referencePath" (printf "networkpolicies.%s.controllers" $networkPolicyObject.identifier)) | fromYamlArray -}}
+    {{- else if $networkPolicyObject.controller -}}
+      {{- $controllerIdentifiers = list $networkPolicyObject.controller -}}
     {{- else -}}
-      {{- /* Auto-detect: if only one controller exists, use it */ -}}
-      {{- $enabledControllers := (include "bjw-s.common.lib.controller.enabledControllers" (dict "rootContext" $rootContext) | fromYaml) -}}
+      {{- $enabledControllers := include "bjw-s.common.lib.controller.enabledControllers" (dict "rootContext" $rootContext) | fromYaml -}}
       {{- if eq (len $enabledControllers) 1 -}}
-        {{- $controllerIdentifier = keys $enabledControllers | first -}}
+        {{- $controllerIdentifiers = keys $enabledControllers -}}
       {{- end -}}
     {{- end -}}
-
-    {{- /* Build the pod selector */ -}}
-    {{- $selectorLabels := dict "app.kubernetes.io/controller" $controllerIdentifier -}}
-    {{- /* Add global selector labels first */ -}}
-    {{- $selectorLabels = merge
-      (include "bjw-s.common.lib.metadata.selectorLabels" $rootContext | fromYaml)
-      $selectorLabels
-    -}}
-    {{- /* Add extra selector labels last (takes precedence) */ -}}
-    {{- if hasKey $networkPolicyObject "extraSelectorLabels" -}}
-      {{- $selectorLabels = merge
-        $selectorLabels
-        ($networkPolicyObject.extraSelectorLabels | default dict)
-      -}}
-    {{- end -}}
-    {{- $podSelector = dict "matchLabels" $selectorLabels -}}
+    {{- $podSelector = include "bjw-s.common.lib.networkpolicy.controllerSelector" (dict "rootContext" $rootContext "controllerIdentifiers" $controllerIdentifiers "extraSelectorLabels" $networkPolicyObject.extraSelectorLabels) | fromYaml -}}
   {{- end -}}
 ---
 apiVersion: networking.k8s.io/v1
@@ -54,13 +39,13 @@ metadata:
   {{- with $labels }}
   labels:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   {{- with $annotations }}
   annotations:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   namespace: {{ $rootContext.Release.Namespace }}
@@ -70,9 +55,9 @@ spec:
   policyTypes: {{- toYaml . | nindent 4 -}}
   {{- end }}
   {{- with $networkPolicyObject.rules.ingress }}
-  ingress: {{- tpl (toYaml .) $rootContext | nindent 4 -}}
+  ingress: {{- include "bjw-s.common.lib.common.renderString" (dict "value" (include "bjw-s.common.lib.networkpolicy.rules" (dict "rootContext" $rootContext "rules" . "direction" "ingress" "policyIdentifier" $networkPolicyObject.identifier)) "rootContext" $rootContext) | nindent 4 -}}
   {{- end }}
   {{- with $networkPolicyObject.rules.egress }}
-  egress: {{- tpl (toYaml .) $rootContext | nindent 4 -}}
+  egress: {{- include "bjw-s.common.lib.common.renderString" (dict "value" (include "bjw-s.common.lib.networkpolicy.rules" (dict "rootContext" $rootContext "rules" . "direction" "egress" "policyIdentifier" $networkPolicyObject.identifier)) "rootContext" $rootContext) | nindent 4 -}}
   {{- end }}
 {{- end -}}

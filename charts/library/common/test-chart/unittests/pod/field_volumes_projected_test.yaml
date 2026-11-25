@@ -6,6 +6,68 @@ templates:
 values:
   - ../_values/controllers_main_default_container.yaml
 tests:
+  - it: should reject projected persistence when sources are missing
+    set:
+      persistence:
+        api-token:
+          enabled: true
+          type: projected
+    asserts:
+      - failedTemplate:
+          errorPattern: "values don't meet the specifications of the schema"
+
+  - it: should reject projected sources with multiple source types
+    set:
+      persistence:
+        api-token:
+          enabled: true
+          type: projected
+          sources:
+            - serviceAccountToken:
+                path: token
+              configMap:
+                name: settings
+    asserts:
+      - failedTemplate:
+          errorPattern: "values don't meet the specifications of the schema"
+
+  - it: should reject projected sources with unknown source types
+    set:
+      persistence:
+        api-token:
+          enabled: true
+          type: projected
+          sources:
+            - downwardAPI:
+                items: []
+    asserts:
+      - failedTemplate:
+          errorPattern: "values don't meet the specifications of the schema"
+
+  - it: should reject projected ConfigMap sources without a name
+    set:
+      persistence:
+        api-token:
+          enabled: true
+          type: projected
+          sources:
+            - configMap: {}
+    asserts:
+      - failedTemplate:
+          errorPattern: "values don't meet the specifications of the schema"
+
+  - it: should reject projected Secret sources without a name
+    set:
+      persistence:
+        api-token:
+          enabled: true
+          type: projected
+          sources:
+            - secret: {}
+    asserts:
+      - failedTemplate:
+          errorPattern: "values don't meet the specifications of the schema"
+
   - it: should project a ServiceAccount token
     set:
       persistence:
@@ -140,3 +202,30 @@ tests:
           value:
             name: api-token
             mountPath: /var/run/secrets/tokens
+
+  - it: should support advanced mounts for the projected volume
+    set:
+      persistence:
+        api-token:
+          enabled: true
+          type: projected
+          sources:
+            - serviceAccountToken:
+                path: token
+          advancedMounts:
+            main:
+              main:
+                - path: /var/run/secrets/tokens
+                  readOnly: true
+                  subPath: token
+    documentSelector:
+      path: $[?(@.kind == "Deployment")].metadata.name
+      value: release-name
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0]
+          value:
+            name: api-token
+            mountPath: /var/run/secrets/tokens
+            readOnly: true
+            subPath: token

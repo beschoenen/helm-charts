@@ -1,0 +1,148 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: ciliumNetworkPolicy - validations
+templates:
+  - common.yaml
+values:
+  - ../_values/controllers_main_default_container.yaml
+tests:
+  - it: requires controller or endpointSelector with multiple controllers
+    set:
+      controllers.secondary:
+        containers:
+          main:
+            image:
+              repository: nginx
+              tag: latest
+      networkpolicies.main:
+        type: cilium
+        ingress:
+          - {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "CiliumNetworkPolicy 'main': controller, controllers, or endpointSelector field is required because automatic controller detection is not possible (found 2 enabled controllers). Please specify which controllers this CiliumNetworkPolicy should reference."
+
+  - it: validates controller references
+    set:
+      networkpolicies.main:
+        type: cilium
+        controller: missing
+        ingress:
+          - {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "CiliumNetworkPolicy 'main': No enabled controller found with identifier 'missing'. Available controllers: [main]"
+
+  - it: rejects controller and endpointSelector together
+    set:
+      networkpolicies.main:
+        type: cilium
+        controller: main
+        endpointSelector:
+          matchLabels:
+            role: frontend
+        ingress:
+          - {}
+    asserts:
+      - failedTemplate:
+          errorPattern: values don't meet the specifications of the schema
+
+  - it: requires at least one rule direction
+    set:
+      networkpolicies.main:
+        type: cilium
+        controller: main
+    asserts:
+      - failedTemplate:
+          errorPattern: values don't meet the specifications of the schema
+
+  - it: rejects nodeSelector on a CiliumNetworkPolicy
+    set:
+      networkpolicies.main:
+        type: cilium
+        controller: main
+        nodeSelector:
+          matchLabels:
+            kubernetes.io/os: linux
+        ingress:
+          - {}
+    asserts:
+      - failedTemplate:
+          errorPattern: values don't meet the specifications of the schema
+
+  - it: validates every controller reference
+    set:
+      networkpolicies.main:
+        type: cilium
+        controllers:
+          - main
+          - missing
+        ingress:
+          - {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "CiliumNetworkPolicy 'main': Controller reference 'missing' matched no enabled controllers. Update 'networkpolicies.main.controllers' to match one of: [main]."
+
+  - it: rejects a rule controller regular expression without matches
+    set:
+      networkpolicies.main:
+        type: cilium
+        controller: main
+        egress:
+          - toControllers: [worker-.*]
+    asserts:
+      - failedTemplate:
+          errorMessage: "CiliumNetworkPolicy 'main': Controller reference 'worker-.*' matched no enabled controllers. Update 'networkpolicies.main.egress[0].toControllers' to match one of: [main]."
+
+  - it: rejects the singular toController rule field
+    set:
+      networkpolicies.main:
+        type: cilium
+        controller: main
+        egress:
+          - toController: main
+    asserts:
+      - failedTemplate:
+          errorPattern: values don't meet the specifications of the schema
+
+  - it: rejects empty toControllers
+    set:
+      networkpolicies.main:
+        type: cilium
+        controller: main
+        egress:
+          - toControllers: []
+    asserts:
+      - failedTemplate:
+          errorPattern: values don't meet the specifications of the schema
+
+  - it: rejects malformed rule controller regular expressions with policy context
+    set:
+      networkpolicies.main:
+        type: cilium
+        controller: main
+        egress:
+          - toControllers: ["[broken"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "CiliumNetworkPolicy 'main': Controller reference '[broken' is not a valid regular expression. Fix 'networkpolicies.main.egress[0].toControllers'."
+
+  - it: does not treat a disabled exact toControllers reference as a regex
+    set:
+      controllers:
+        worker.v1:
+          enabled: false
+        worker-v1:
+          containers:
+            main:
+              image:
+                repository: nginx
+                tag: latest
+      networkpolicies.main:
+        type: cilium
+        controller: main
+        egress:
+          - toControllers: [worker.v1]
+    asserts:
+      - failedTemplate:
+          errorMessage: "CiliumNetworkPolicy 'main': Controller reference 'worker.v1' matched no enabled controllers. Update 'networkpolicies.main.egress[0].toControllers' to match one of: [main, worker-v1]."

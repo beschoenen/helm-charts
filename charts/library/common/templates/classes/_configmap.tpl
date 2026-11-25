@@ -6,13 +6,13 @@ within the common library.
   {{- $rootContext := .rootContext -}}
   {{- $configMapObject := .object -}}
 
-  {{- $labels := merge
-    ($configMapObject.labels | default dict)
+  {{- $labels := mergeOverwrite
     (include "bjw-s.common.lib.metadata.allLabels" $rootContext | fromYaml)
+    ($configMapObject.labels | default dict)
   -}}
-  {{- $annotations := merge
-    ($configMapObject.annotations | default dict)
+  {{- $annotations := mergeOverwrite
     (include "bjw-s.common.lib.metadata.globalAnnotations" $rootContext | fromYaml)
+    ($configMapObject.annotations | default dict)
   -}}
 ---
 apiVersion: v1
@@ -22,22 +22,22 @@ metadata:
   {{- with $labels }}
   labels:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   {{- with $annotations }}
   annotations:
     {{- range $key, $value := . }}
-      {{- printf "%s: %s" $key (tpl $value $rootContext | toYaml ) | nindent 4 }}
+      {{- printf "%s: %s" $key (include "bjw-s.common.lib.common.renderString" (dict "value" $value "rootContext" $rootContext) | toYaml ) | nindent 4 }}
     {{- end }}
   {{- end }}
   namespace: {{ $rootContext.Release.Namespace }}
 {{- with $configMapObject.data }}
 data:
-    {{- tpl (toYaml .) $rootContext | nindent 2 }}
+    {{- include "bjw-s.common.lib.common.renderString" (dict "value" (toYaml .) "rootContext" $rootContext "render" ($configMapObject.renderFileContent | default false)) | nindent 2 }}
 {{- end }}
 {{- with $configMapObject.binaryData }}
 binaryData:
-    {{- tpl (toYaml .) $rootContext | nindent 2 }}
+    {{- include "bjw-s.common.lib.common.renderString" (dict "value" (toYaml .) "rootContext" $rootContext "render" ($configMapObject.renderFileContent | default false)) | nindent 2 }}
 {{- end }}
 {{- end -}}

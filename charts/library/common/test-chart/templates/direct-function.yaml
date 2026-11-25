@@ -1,0 +1,25 @@
+{{- $variables := .Values.variables | default dict -}}
+{{- if $variables.directControllerSelectorTest -}}
+{{- $controllerObject := dict "identifier" "main" "extraSelectorLabels" .Values.controllers.main.extraSelectorLabels "labels" .Values.controllers.main.labels -}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: direct-controller-selector
+  labels: {{ include "bjw-s.common.lib.controller.metadata.selectorLabels" (dict "rootContext" $ "controllerObject" $controllerObject) | nindent 4 }}
+data:
+  originalComponent: {{ $controllerObject.extraSelectorLabels.component | quote }}
+{{- end -}}
+{{- if $variables.directFunctionTest -}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: direct-function
+data:
+  image: {{ include "bjw-s.common.lib.imageSpecificationToImage" (dict "rootContext" $ "imageSpec" (dict "repository" "{{ .Values.variables.repository }}" "tag" "{{ .Values.variables.tag }}")) | quote }}
+{{- end -}}
+{{- if $variables.directClassTest -}}
+---
+{{- include "bjw-s.common.class.configMap" (dict "rootContext" $ "object" (dict "name" "direct-class" "data" (dict "value" "{{ .Values.variables.value }}"))) }}
+{{- end -}}

@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bjw-s-labs/helm-charts/common-5.3.0/charts/library/common/schemas/persistence.json",
   "$defs": {
     "item": {
       "properties": {
@@ -124,7 +125,7 @@
         },
         "existingClaim": {
           "type": "string",
-          "description": "The name of an existing PersistentVolumeClaim to use. Helm templates are supported.\nThis will not create a new PVC, but use the existing one instead."
+          "description": "The name of an existing PersistentVolumeClaim to use.\nThis will not create a new PVC, but use the existing one instead."
         }
       }
     },
@@ -204,7 +205,7 @@
     },
     "item.type.secret": {
       "type": "object",
-      "description": "Mount a Secret as a volume. Use 'name' for external Secrets, or 'identifier' to reference one managed by this chart.",
+      "description": "Mount a Secret as a volume. Use 'name' for an existing Secret, 'identifier' for a Secret managed by this chart, or 'externalSecretRef' for an ExternalSecret managed by this chart.",
       "examples": [
         "persistence:\n  credentials:\n    type: secret\n    name: my-secret",
         "persistence:\n  tls:\n    type: secret\n    name: app-tls-cert\n    globalMounts:\n      - path: /etc/ssl/certs\n        readOnly: true"
@@ -212,7 +213,7 @@
       "required": [
         "type"
       ],
-      "$comment": "oneOf enforces that at least one of name/identifier is present. dependentSchemas enforces mutual exclusion with a targeted error when both are set. Both are needed — do not simplify to oneOf alone.",
+      "$comment": "oneOf enforces that at least one of name/identifier/externalSecretRef is present. dependentSchemas enforces mutual exclusion. Both are needed — do not simplify to oneOf alone.",
       "oneOf": [
         {
           "required": [
@@ -223,20 +224,59 @@
           "required": [
             "identifier"
           ]
+        },
+        {
+          "required": [
+            "externalSecretRef"
+          ]
         }
       ],
       "dependentSchemas": {
         "name": {
           "not": {
-            "required": [
-              "identifier"
+            "anyOf": [
+              {
+                "required": [
+                  "identifier"
+                ]
+              },
+              {
+                "required": [
+                  "externalSecretRef"
+                ]
+              }
             ]
           }
         },
         "identifier": {
           "not": {
-            "required": [
-              "name"
+            "anyOf": [
+              {
+                "required": [
+                  "name"
+                ]
+              },
+              {
+                "required": [
+                  "externalSecretRef"
+                ]
+              }
+            ]
+          }
+        },
+        "externalSecretRef": {
+          "not": {
+            "anyOf": [
+              {
+                "required": [
+                  "name"
+                ]
+              },
+              {
+                "required": [
+                  "identifier"
+                ]
+              }
             ]
           }
         }
@@ -249,6 +289,9 @@
           "type": "string"
         },
         "identifier": {
+          "type": "string"
+        },
+        "externalSecretRef": {
           "type": "string"
         },
         "defaultMode": {
@@ -435,7 +478,7 @@
         },
         "sources": {
           "type": "array",
-          "description": "The list of volume projections to mount into this volume. Helm templates are supported.",
+          "description": "The list of volume projections to mount into this volume.",
           "minItems": 1,
           "items": {
             "$ref": "#/$defs/volumeProjection"
@@ -446,7 +489,24 @@
     "volumeProjection": {
       "type": "object",
       "description": "A single projection source. Exactly one of serviceAccountToken, configMap or secret must be set.",
-      "minProperties": 1,
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "serviceAccountToken"
+          ]
+        },
+        {
+          "required": [
+            "configMap"
+          ]
+        },
+        {
+          "required": [
+            "secret"
+          ]
+        }
+      ],
       "properties": {
         "serviceAccountToken": {
           "type": "object",
@@ -457,7 +517,7 @@
           "properties": {
             "audience": {
               "type": "string",
-              "description": "The intended audience of the token. A recipient of the token must identify itself with this identifier, otherwise it should reject the token. Defaults to the API server's identifier. Helm templates are supported."
+              "description": "The intended audience of the token. A recipient of the token must identify itself with this identifier, otherwise it should reject the token. Defaults to the API server's identifier."
             },
             "expirationSeconds": {
               "type": "integer",
@@ -465,17 +525,20 @@
             },
             "path": {
               "type": "string",
-              "description": "The path relative to the mount point of the file to project the token into. Helm templates are supported."
+              "description": "The path relative to the mount point of the file to project the token into."
             }
           }
         },
         "configMap": {
           "type": "object",
           "description": "Project a ConfigMap into the volume.",
+          "required": [
+            "name"
+          ],
           "properties": {
             "name": {
               "type": "string",
-              "description": "The name of the ConfigMap to project. Helm templates are supported."
+              "description": "The name of the ConfigMap to project."
             },
             "optional": {
               "type": "boolean",
@@ -493,10 +556,13 @@
         "secret": {
           "type": "object",
           "description": "Project a Secret into the volume.",
+          "required": [
+            "name"
+          ],
           "properties": {
             "name": {
               "type": "string",
-              "description": "The name of the Secret to project. Helm templates are supported."
+              "description": "The name of the Secret to project."
             },
             "optional": {
               "type": "boolean",
@@ -527,7 +593,7 @@
         },
         "path": {
           "type": "string",
-          "description": "The relative path of the file to map the key to. Helm templates are supported."
+          "description": "The relative path of the file to map the key to."
         },
         "mode": {
           "type": "integer",
@@ -609,14 +675,14 @@
       "properties": {
         "path": {
           "type": "string",
-          "description": "The path where the volume should be mounted in the container. Helm templates are supported.\nIf not specified, the mount path will be set to /<identifier_of_the_peristence_item>."
+          "description": "The path where the volume should be mounted in the container.\nIf not specified, the mount path will be set to /<identifier_of_the_peristence_item>."
         },
         "readOnly": {
           "type": "boolean"
         },
         "subPath": {
           "type": "string",
-          "description": "The subPath within the volume to mount. Helm templates are supported.\nIf not specified, the entire volume will be mounted."
+          "description": "The subPath within the volume to mount.\nIf not specified, the entire volume will be mounted."
         },
         "subPathExpr": {
           "type": "string"

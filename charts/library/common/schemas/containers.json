@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/bjw-s-labs/helm-charts/common-5.3.0/charts/library/common/schemas/containers.json",
   "$defs": {
     "container": {
       "type": "object",
@@ -33,11 +34,11 @@
           ]
         },
         "env": {
-          "description": "Environment variables for the container. Supports multiple syntax styles: simple map (key: value), list of K8s v1.EnvVar entries, and valueFrom references (configMapKeyRef, secretKeyRef, fieldRef, resourceFieldRef). Helm templates can be used in values. See the Environment Variables howto for detailed patterns and examples.",
+          "description": "Environment variables for the container. Supports multiple syntax styles: simple map (key: value), list of K8s v1.EnvVar entries, and valueFrom references (configMapKeyRef, secretKeyRef, fieldRef, resourceFieldRef). See the Environment Variables howto for detailed patterns and examples.",
           "$ref": "#/$defs/env"
         },
         "envFrom": {
-          "description": "Secrets and/or ConfigMaps to load as environment variables in bulk. Each entry references either a ConfigMap (via `configMap` name or `configMapRef.identifier`) or a Secret (via `secret` name or `secretRef.identifier`), with optional `prefix`. See the Environment Variables howto for detailed patterns.",
+          "description": "Secrets and/or ConfigMaps to load as environment variables in bulk. Each entry references either a ConfigMap (via `configMap` name or `configMapRef.identifier`), a Secret (via `secret` name or `secretRef.identifier`), or an ExternalSecret (via `externalSecretRef.identifier`), with optional `prefix`. See the Environment Variables howto for detailed patterns.",
           "$ref": "#/$defs/envFrom"
         },
         "image": {
@@ -255,6 +256,21 @@
                 ]
               }
             ]
+          },
+          "externalSecretRef": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "identifier": {
+                "type": "string"
+              },
+              "optional": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "identifier"
+            ]
           }
         }
       }
@@ -287,9 +303,17 @@
           "default": false
         },
         "custom": {
-          "description": "Set to `true` to use the raw `spec` object as-is instead of deriving probe details from `type`/`path`/`port`.",
+          "description": "Set to `true` to use the raw `spec` object as-is instead of deriving probe details from `type`/`command`/`path`/`port`.",
           "type": "boolean",
           "default": false
+        },
+        "command": {
+          "description": "Command to execute for `COMMAND` probes.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
         },
         "path": {
           "description": "HTTP path for HTTP/HTTPS probes.",
@@ -307,17 +331,18 @@
           "type": "string"
         },
         "spec": {
-          "description": "Raw probe spec. When `custom: true`, this is used as-is. Otherwise merged with values derived from `type`/`path`/`port`. Typical fields include `initialDelaySeconds`, `periodSeconds`, `timeoutSeconds`, `failureThreshold`.",
+          "description": "Raw probe spec. When `custom: true`, this is used as-is. Otherwise merged with values derived from `type`/`command`/`path`/`port`. Typical fields include `initialDelaySeconds`, `periodSeconds`, `timeoutSeconds`, `failureThreshold`.",
           "$ref": "k8s-api.json#/$defs/core.v1.Probe"
         },
         "type": {
-          "description": "Probe type. Defaults to `TCP` for liveness, readiness and startup probes. `AUTO` attempts to infer the probe type from the container's ports.",
+          "description": "Probe type. Defaults to `COMMAND` when command is configured, otherwise `TCP`. `AUTO` attempts to infer the probe type from the configured command or the container's ports.",
           "type": "string",
           "enum": [
             "TCP",
             "HTTP",
             "HTTPS",
             "GRPC",
+            "COMMAND",
             "AUTO"
           ]
         }
