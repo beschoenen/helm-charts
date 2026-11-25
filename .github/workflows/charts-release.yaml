@@ -158,6 +158,6 @@ jobs:
     with:
       chart: ${{ matrix.chart }}
       createGithubRelease: true
-      publishToGhPages: true
+      publishToGhPages: false
       publishToOciRegistry: true
-      deployGhPages: true
+      deployGhPages: false

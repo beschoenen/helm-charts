@@ -745,12 +745,13 @@ jobs:
           PACKAGE: ${{ steps.validate-artifact.outputs.package }}
           MANIFEST: ${{ steps.validate-artifact.outputs.manifest }}
           GITHUB_REF: ${{ github.ref }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
 
           name="$(jq -r .chartName "$MANIFEST")"
           version="$(jq -r .chartVersion "$MANIFEST")"
-          base="ghcr.io/bjw-s-labs/helm"
+          base="ghcr.io/${REPOSITORY_OWNER}/helm"
           log="$RUNNER_TEMP/helm-push.log"
 
           # Push the validated package to the OCI registry, surfacing the log on failure.
